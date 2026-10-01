@@ -1,0 +1,14 @@
+{
+  "siso": {
+    "source": "siso_fwd.py",
+    "source_sha256": "88106f0210279ac41cba4601b61f6523eff5009a26bc2ce7b4ddccecbf431639",
+    "generated": "tail_siso_fwd.py",
+    "generated_sha256": "bfccaf6ab92158ca1a5e60341919b380ef46c3f4d9fede249a3ac5e8344e8bc0"
+  },
+  "mimo": {
+    "source": "mimo_fwd.py",
+    "source_sha256": "6c4c0ded22b8a682ea29854170c02d09a546c05c12e9b79b11d5e3e19d798a00",
+    "generated": "tail_mimo_fwd.py",
+    "generated_sha256": "e7037aa4acaab41c3e593d944477341f61c56e61345417b280e2ea71c49d3d78"
+  }
+}

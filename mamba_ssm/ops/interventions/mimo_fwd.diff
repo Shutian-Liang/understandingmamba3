@@ -1,0 +1,76 @@
+--- mimo_fwd.py
++++ tail_mimo_fwd.py
+@@ -56,6 +56,8 @@
+     num_stages: int = 0,
+     rotate_q: bool = True,
+     rotate_k: bool = True,
++    phase_start: int = 0,
++    phase_end: int = 2147483647,
+ ) -> torch.Tensor:
+ 
+     accum_dtype = 'float32'
+@@ -245,9 +247,8 @@
+                 # --- Cache Diagonal qk_dot Path ---
+                 # Keep full qk_dot in shared memory because we reuse same-step R x R blocks later.
+                 qk_dot_frag = T.alloc_fragment([fused_chunk_size, fused_chunk_size], dtype=accum_dtype)
+-                if rotate_q == rotate_k:
+-                    T.gemm(q_shared, k_shared, qk_dot_frag, transpose_B=True, clear_accum=True)
+-                    T.copy(qk_dot_frag, qk_dot_full_shared)
++                T.gemm(q_shared, k_shared, qk_dot_frag, transpose_B=True, clear_accum=True)
++                T.copy(qk_dot_frag, qk_dot_full_shared)
+                 # Option B: extremely slow
+                 # qk_dot_frag = T.alloc_fragment([chunk_size, R, R], dtype=accum_dtype)
+                 # T.clear(qk_dot_frag)
+@@ -277,8 +278,8 @@
+                 angles_frag = T.alloc_fragment([chunk_size, N//rotary_dim_divisor], T.float32)
+                 T.copy(ANGLES[i_b, chunk_start:chunk_start+chunk_size, i_h, :], angles_frag)
+ 
+-                if rotate_q:
+-                    for cs, r, n in T.Parallel(chunk_size, R, N//rotary_dim_divisor):
++                for cs, r, n in T.Parallel(chunk_size, R, N//rotary_dim_divisor):
++                    if rotate_q or chunk_start + cs < phase_start or chunk_start + cs >= phase_end:
+                         q_shared[cs*R + r, n] = T.cos(angles_frag[cs, n]) * q_first_half_frag[cs, r, n] - T.sin(angles_frag[cs, n]) * q_second_half_frag[cs, r, n]
+                         q_shared[cs*R + r, N//2 + n] = T.sin(angles_frag[cs, n]) * q_first_half_frag[cs, r, n] + T.cos(angles_frag[cs, n]) * q_second_half_frag[cs, r, n]
+ 
+@@ -294,16 +295,19 @@
+                     k_first_half_frag[cs, r, n] = k_shared[cs*R + r, n]
+                     k_second_half_frag[cs, r, n] = k_shared[cs*R + r, N//2 + n]
+                 
+-                if rotate_k:
+-                    for cs, r, n in T.Parallel(chunk_size, R, N//rotary_dim_divisor):
++                for cs, r, n in T.Parallel(chunk_size, R, N//rotary_dim_divisor):
++                    if rotate_k or chunk_start + cs < phase_start or chunk_start + cs >= phase_end:
+                         k_shared[cs*R + r, n] = T.cos(angles_frag[cs, n]) * k_first_half_frag[cs, r, n] - T.sin(angles_frag[cs, n]) * k_second_half_frag[cs, r, n]
+                         k_shared[cs*R + r, N//2 + n] = T.sin(angles_frag[cs, n]) * k_first_half_frag[cs, r, n] + T.cos(angles_frag[cs, n]) * k_second_half_frag[cs, r, n]
+ 
+                 # Recompute same-token R x R blocks after unilateral rotation,
+                 # before multiplying K by the trapezoidal write scale.
+                 if rotate_q != rotate_k:
+-                    T.gemm(q_shared, k_shared, qk_dot_frag, transpose_B=True, clear_accum=True)
+-                    T.copy(qk_dot_frag, qk_dot_full_shared)
++                    if chunk_start + chunk_size > phase_start and chunk_start < phase_end:
++                        T.gemm(q_shared, k_shared, qk_dot_frag, transpose_B=True, clear_accum=True)
++                        for a, b in T.Parallel(fused_chunk_size, fused_chunk_size):
++                            if chunk_start + a // R >= phase_start and chunk_start + a // R < phase_end:
++                                qk_dot_full_shared[a, b] = qk_dot_frag[a, b]
+ 
+                 if i == nchunks - 1 and return_final_state:
+                     seq_boundary = T.min(chunk_start + chunk_size, S) - chunk_start
+@@ -492,7 +496,7 @@
+                        outproj_norm_weight=None,
+                        outproj_norm_eps=1e-5,
+                        threads=128, 
+-                       num_stages=0, rotate_q=True, rotate_k=True):
++                       num_stages=0, rotate_q=True, rotate_k=True, phase_start=0, phase_end=2147483647):
+     B, S, R, G, N = q.shape
+     H, P = v.shape[-2], v.shape[-1]
+     if isinstance(dtype, torch.dtype):
+@@ -520,7 +524,7 @@
+                             dtype=tl_dtype, 
+                             outproj_norm_eps=outproj_norm_eps,
+                             threads=threads, 
+-                            num_stages=num_stages, rotate_q=rotate_q, rotate_k=rotate_k)
++                            num_stages=num_stages, rotate_q=rotate_q, rotate_k=rotate_k, phase_start=phase_start, phase_end=phase_end)
+     # print(kernel.get_kernel_source()) # NOTE: prints compiled CUDA code
+     if reduceO:
+         o = torch.empty((B, S, H, P), device='cuda', dtype=dtype)

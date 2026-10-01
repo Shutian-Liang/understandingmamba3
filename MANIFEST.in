@@ -1,0 +1,3 @@
+include README.md LICENSE AUTHORS
+recursive-include csrc *
+recursive-include mamba_ssm *.md *.diff *.json

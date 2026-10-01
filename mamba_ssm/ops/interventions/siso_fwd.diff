@@ -1,0 +1,83 @@
+--- siso_fwd.py
++++ tail_siso_fwd.py
+@@ -40,7 +40,7 @@
+     ],
+     key=[
+         "CHUNK_SIZE", "HEADDIM_QK", "HEADDIM_V", "STORE_SSM_STATES_ADT_OUTV", "HAS_D",
+-        "HAS_Z", "HAS_INITIAL_STATES", "RETURN_FINAL_STATES", "IS_VARLEN", "ROTATE_Q", "ROTATE_K"],
++        "HAS_Z", "HAS_INITIAL_STATES", "RETURN_FINAL_STATES", "IS_VARLEN", "ROTATE_Q", "ROTATE_K", "PHASE_START", "PHASE_END"],
+     prune_configs_by={
+         "early_config_prune": _prune_mamba3_siso_fwd_configs,
+     },
+@@ -98,6 +98,8 @@
+     IS_VARLEN: tl.constexpr,
+     ROTATE_Q: tl.constexpr,
+     ROTATE_K: tl.constexpr,
++    PHASE_START: tl.constexpr,
++    PHASE_END: tl.constexpr,
+ ):
+     """
+     Mamba-3 forward kernel.
+@@ -332,11 +334,12 @@
+ 
+         # Apply rotary embeddings to K and scale
+         k0, k1 = tl.split(tl.reshape(k_pre_block, [CHUNK_SIZE, HEADDIM_QK // 2, 2]))
+-        if ROTATE_K:
+-            ko0 = k0 * cos_block - k1 * sin_block
+-            ko1 = k0 * sin_block + k1 * cos_block
+-        else:
+-            ko0, ko1 = k0, k1
++        ko0 = k0 * cos_block - k1 * sin_block
++        ko1 = k0 * sin_block + k1 * cos_block
++        if not ROTATE_K:
++            active_phase = (offs_seqlen >= PHASE_START) & (offs_seqlen < PHASE_END)
++            ko0 = tl.where(active_phase[:, None], k0, ko0)
++            ko1 = tl.where(active_phase[:, None], k1, ko1)
+         k_pre_block = tl.reshape(tl.join(ko0, ko1), [CHUNK_SIZE, HEADDIM_QK]).to(k_pre_block.dtype)
+ 
+         if chunk_idx == num_chunks - 1 and RETURN_FINAL_STATES:
+@@ -351,11 +354,12 @@
+ 
+         # Apply rotary embeddings to Q
+         q0, q1 = tl.split(tl.reshape(q_pre_block, [CHUNK_SIZE, HEADDIM_QK // 2, 2]))
+-        if ROTATE_Q:
+-            qo0 = q0 * cos_block - q1 * sin_block
+-            qo1 = q0 * sin_block + q1 * cos_block
+-        else:
+-            qo0, qo1 = q0, q1
++        qo0 = q0 * cos_block - q1 * sin_block
++        qo1 = q0 * sin_block + q1 * cos_block
++        if not ROTATE_Q:
++            active_phase = (offs_seqlen >= PHASE_START) & (offs_seqlen < PHASE_END)
++            qo0 = tl.where(active_phase[:, None], q0, qo0)
++            qo1 = tl.where(active_phase[:, None], q1, qo1)
+         q_pre_block = tl.reshape(tl.join(qo0, qo1), [CHUNK_SIZE, HEADDIM_QK]).to(q_pre_block.dtype)
+         q_store_desc.store([chunk_start, 0], q_pre_block.to(tl.bfloat16))
+ 
+@@ -366,7 +370,7 @@
+             k_effective = tl.reshape(tl.join(ko0, ko1), [CHUNK_SIZE, HEADDIM_QK])
+             actual_qk = tl.sum(q_effective * k_effective, axis=1).to(q_pre_block.dtype)
+             actual_qk *= gamma
+-            tl.store(qk_store_ptr + offs_seqlen * stride_qk_store_seqlen, actual_qk, mask=offs_seqlen < seqlen)
++            tl.store(qk_store_ptr + offs_seqlen * stride_qk_store_seqlen, actual_qk, mask=(offs_seqlen < seqlen) & (offs_seqlen >= PHASE_START) & (offs_seqlen < PHASE_END))
+ 
+     # Phase 2: Main computation and output generation.
+     if HAS_INITIAL_STATES:
+@@ -493,6 +497,8 @@
+     cu_seqlens: Optional[torch.Tensor] = None,
+     rotate_q: bool = True,
+     rotate_k: bool = True,
++    phase_start: int = 0,
++    phase_end: int = 2147483647,
+ ):
+     """
+     Mamba-3 forward pass wrapper.
+@@ -726,6 +732,8 @@
+         IS_VARLEN=is_varlen,
+         ROTATE_Q=rotate_q,
+         ROTATE_K=rotate_k,
++        PHASE_START=phase_start,
++        PHASE_END=phase_end,
+     )
+ 
+     Final_States = None

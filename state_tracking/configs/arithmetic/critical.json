@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "models": [
+    "mamba3_second_order"
+  ],
+  "experiment": {
+    "task": "modular_arithmetic_mod3",
+    "description": "Critically Damped on modular_arithmetic_mod3."
+  },
+  "model": {
+    "n_layers": 3,
+    "d_intermediate": 0,
+    "tie_embeddings": false,
+    "d_state": 64,
+    "expand": 2,
+    "headdim": 64,
+    "rope_fraction": 0.5,
+    "mimo_rank": 1,
+    "chunk_size": 64,
+    "transition_mode": "critically_damped",
+    "second_order_transition": "closed_form",
+    "scan_backend": "triton",
+    "scan_chunk_size": 64
+  },
+  "training": {
+    "steps": 10000,
+    "batch_size": 256,
+    "micro_batch_size": 64,
+    "curriculum_min_length": 3,
+    "curriculum_start_max": 40,
+    "curriculum_end_max": 160,
+    "curriculum_ramp_start_step": 0,
+    "curriculum_ramp_steps": 10000,
+    "long_sequence_mix_ratio": 0.0,
+    "lr": 0.0001,
+    "min_lr": 1e-06,
+    "warmup_steps": 1000,
+    "lr_decay_horizon_steps": 10000,
+    "cooldown_steps": 0,
+    "scheduler": "cosine",
+    "weight_decay": 0.1,
+    "grad_clip": 10.0
+  },
+  "evaluation": {
+    "context_length": 224,
+    "log_every": 20,
+    "eval_every": 250,
+    "save_every": 1000,
+    "validation_samples": 4096,
+    "test_samples": 8192,
+    "eval_lengths": [
+      160,
+      192,
+      224
+    ]
+  },
+  "runtime": {
+    "output_root": "outputs/arithmetic/critical",
+    "precision": "fp32",
+    "allow_tf32": true,
+    "compile_model": false,
+    "device": "cuda",
+    "resume": "none"
+  },
+  "sweep": {
+    "d_models": [
+      64
+    ],
+    "learning_rates": [
+      0.0001,
+      0.00019306977288832496,
+      0.0003727593720314938,
+      0.0007196856730011514,
+      0.0013894954943731374,
+      0.0026826957952797246,
+      0.005179474679231213,
+      0.01
+    ],
+    "seeds": [
+      42,
+      43
+    ]
+  }
+}

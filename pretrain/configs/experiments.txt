@@ -1,0 +1,4 @@
+pretrain/configs/mamba3_mimo_187m_rope05_fineweb_edu_llama31_100b.json
+pretrain/configs/mamba3_mimo_187m_rope0_fineweb_edu_llama31_100b.json
+pretrain/configs/mamba3_mimo_444m_rope05_fineweb_edu_llama31_100b.json
+pretrain/configs/mamba3_mimo_444m_rope0_fineweb_edu_llama31_100b.json

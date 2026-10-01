@@ -1,0 +1,8 @@
+{
+  "repository": "https://github.com/THUDM/LongBench",
+  "commit": "2e00731f8d0bff23dc4325161044d0ed8af94c1e",
+  "subdirectory": "LongBench",
+  "files": ["eval.py", "pred.py", "metrics.py", "config/dataset2prompt.json", "config/dataset2maxlen.json"],
+  "license": "MIT; LICENSE copied from repository root",
+  "benchmark": "LongBench v1 / LongBench-E, not LongBench v2"
+}
