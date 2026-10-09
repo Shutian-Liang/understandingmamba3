@@ -260,7 +260,7 @@ setup(
     version=get_package_version(),
     packages=find_packages(include=("mamba_ssm", "mamba_ssm.*")),
     package_data={
-        "mamba_ssm": ["SHARED_CORE.md"],
+        "mamba_ssm": ["SHARED_CORE.md", "paper_kernel_policy.json"],
         "mamba_ssm.ops.interventions": ["*.diff", "*.json"],
     },
     author="Tri Dao, Albert Gu",

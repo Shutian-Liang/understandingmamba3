@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "purpose": "Pin the Triton launch configurations used for the reported intervention results.",
+  "models": {
+    "siso": {
+      "kernels": {
+        "mamba_ssm.ops.triton.layer_norm._layer_norm_fwd_1pass_kernel": {
+          "(2048, False, True, True, False, 'torch.bfloat16', 'torch.bfloat16', 'torch.bfloat16', 'torch.float32', 'torch.float32')": {
+            "num_warps": 32,
+            "num_ctas": 1,
+            "num_stages": 3
+          },
+          "(2048, True, True, True, False, 'torch.bfloat16', 'torch.bfloat16', 'torch.bfloat16', 'torch.float32', 'torch.float32', 'torch.float32')": {
+            "num_warps": 2,
+            "num_ctas": 1,
+            "num_stages": 3
+          }
+        },
+        "mamba_ssm.ops.triton.mamba3.angle_dt.angle_dt_fwd_kernel": {
+          "(64, 32, False, True, False, 'torch.bfloat16', 'torch.bfloat16', 'torch.bfloat16', 'torch.float32', 'torch.bfloat16', 'torch.bfloat16')": {
+            "num_warps": 4,
+            "num_ctas": 1,
+            "num_stages": 1
+          }
+        },
+        "mamba_ssm.ops.triton.mamba3.mamba3_siso_fwd.mamba3_siso_fwd_kernel": {
+          "(64, 128, 64, False, True, True, False, False, False, 'torch.bfloat16', 'torch.bfloat16', 'torch.bfloat16', 'torch.float32', 'torch.float32', 'torch.bfloat16', 'torch.float32', 'torch.float32', 'torch.bfloat16', 'torch.float32', 'torch.bfloat16', 'torch.bfloat16', 'torch.bfloat16', 'torch.bfloat16', 'torch.float32', 'torch.float32', 'torch.float32')": {
+            "num_warps": 8,
+            "num_ctas": 1,
+            "num_stages": 3
+          }
+        }
+      },
+      "reference_nll": {
+        "1000": 174.7270050048828,
+        "64000": 338.2359924316406
+      }
+    },
+    "mimo": {
+      "kernels": {
+        "mamba_ssm.ops.triton.layer_norm._layer_norm_fwd_1pass_kernel": {
+          "(2048, False, False, True, False, 'torch.bfloat16', 'torch.bfloat16', 'torch.bfloat16', 'torch.float32')": {
+            "num_warps": 4,
+            "num_ctas": 1,
+            "num_stages": 3
+          }
+        },
+        "mamba_ssm.ops.triton.mamba3.mamba3_mimo_utils.dacs_segsum_kernel": {
+          "(16, 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32')": {
+            "num_warps": 4,
+            "num_ctas": 1,
+            "num_stages": 3
+          }
+        },
+        "mamba_ssm.ops.triton.mamba3.angle_dt.angle_dt_fwd_kernel": {
+          "(16, 32, False, True, False, 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32', 'torch.float32')": {
+            "num_warps": 2,
+            "num_ctas": 1,
+            "num_stages": 1
+          }
+        }
+      },
+      "reference_nll": {
+        "1000": 187.880859375,
+        "64000": 352.40472412109375
+      }
+    }
+  }
+}

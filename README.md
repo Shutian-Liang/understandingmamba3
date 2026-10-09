@@ -226,7 +226,17 @@ PPL, PG-19, and LongBench-E results are written under `evaluate/results/<eval-na
 
 ## 6. Phase interventions
 
-The intervention modules wrap a model forward pass. Dataset loading and metrics stay in the calling evaluation code.
+The intervention modules can wrap an individual forward pass, and the runnable evaluators below provide the paper's dataset and metric protocols.
+
+For numerical reproduction of the reported intervention tables, pin the paper-time Triton launch choices before the first model forward:
+
+~~~python
+from mamba_ssm.utils.paper_kernel_policy import apply_paper_kernel_policy
+
+kernel_policy = apply_paper_kernel_policy("siso")  # or "mimo"
+~~~
+
+This disables autotuning only for the input signatures used by the reported SISO/MIMO evaluations. It does not change model parameters, dtypes, or intervention definitions. Record the returned policy SHA-256 with the results. The reproduction commands below enable the bundled policy by default; pass `--no-kernel-policy` only to compare against normal Triton autotuning.
 
 Full-sequence phase interventions:
 
@@ -238,6 +248,19 @@ with intervention(model, "zero_angles", sequence_length=input_ids.shape[1]):
 ~~~
 
 Other conditions are `phase_reverse`, `phase_oscillator_shuffle`, `rope_a_mix_1`, and `phase_within_token_oscillator_shuffle`.
+
+The paper's phase-shuffle row is `phase_within_token_oscillator_shuffle`, which independently permutes rotary-pair increments at each layer, head, and token. `phase_oscillator_shuffle` is a separate fixed-per-layer control. The reported decay-permutation row is `rope_a_mix_1`; it permutes head decay only on rotary state coordinates while preserving non-rotary coordinates.
+
+To avoid relying on those internal experiment names, use the table-labelled wrapper:
+
+~~~python
+from interventions.phase_interventions.run import paper_table5_intervention
+
+with paper_table5_intervention(model, "phase_shuffle", input_ids.shape[1]):
+    logits = model(input_ids).logits
+~~~
+
+Its accepted names are `decay_permutation`, `phase_shuffle`, `phase_removal`, and `phase_reversal`.
 
 Remove B/C phase over the full sequence or a selected predictor interval:
 
@@ -259,6 +282,14 @@ from interventions.phase_zero_accuracy.run import ZeroAngles
 
 with ZeroAngles(model, layers=range(12, 18)):
     logits = model(input_ids).logits
+~~~
+
+The complete evaluation protocol and runnable commands for Figure 2 and Tables 5--7 are in [`interventions/README.md`](interventions/README.md). For example, run a one-window Table 5 check with:
+
+~~~bash
+python -m interventions.pg19 \
+  --table 5 --model siso --condition phase_shuffle \
+  --contexts 2000 --smoke
 ~~~
 
 Observe recurrent-state statistics or remove phase for the hidden-state analysis:
